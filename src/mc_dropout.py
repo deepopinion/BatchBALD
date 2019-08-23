@@ -56,15 +56,21 @@ class BayesianModule(Module):
 
     @staticmethod
     def unflatten_tensor(input: torch.Tensor, k: int):
+        """Expands the first dimension of a tensor in two dimensions,
+        k determines the size of the secon
+        """
         input = input.view([-1, k] + list(input.shape[1:]))
         return input
 
     @staticmethod
     def flatten_tensor(mc_input: torch.Tensor):
+        """Flattens the first two dimensions of a tensor in one"""
         return mc_input.flatten(0, 1)
 
     @staticmethod
     def mc_tensor(input: torch.tensor, k: int):
+        """Takes a tensor and repeates all other dimensions along the first
+dimension k times"""
         mc_shape = [input.shape[0], k] + list(input.shape[1:])
         return input.unsqueeze(1).expand(mc_shape).flatten(0, 1)
 

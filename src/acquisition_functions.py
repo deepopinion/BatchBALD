@@ -45,7 +45,7 @@ class AcquisitionFunction(enum.Enum):
         elif self == AcquisitionFunction.predictive_entropy:
             return max_entropy_acquisition_function
         elif self == AcquisitionFunction.bald:
-            return bald_acquisition_function
+            return bald_acquisition_function # This is used as default
         elif self == AcquisitionFunction.variation_ratios:
             return variation_ratios
         elif self == AcquisitionFunction.mean_stddev:

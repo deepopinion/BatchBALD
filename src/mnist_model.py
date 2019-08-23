@@ -17,6 +17,7 @@ class BayesianNet(mc_dropout.BayesianModule):
         self.fc1_drop = mc_dropout.MCDropout()
         self.fc2 = nn.Linear(128, num_classes)
 
+    # Special forward pass used in BayesianModule
     def mc_forward_impl(self, input: Tensor):
         input = F.relu(F.max_pool2d(self.conv1_drop(self.conv1(input)), 2))
         input = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(input)), 2))

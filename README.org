@@ -1,11 +1,24 @@
-* General process
 * Infos
 - ~logits_B_K_C~
   - B :: The batch put into the system
   - K :: The amount of MC samples drawn for each part of the batch
   - C :: Number of classes (one neuron per class obviously)
+* General process
+- Train a normal pytorch model
+- Determine logits of candidate samples for labeling
+  - Replicate samples of a batch ~k~ times (one for each MC sample)
+  - Calculate the logits using a version of dropout that keeps the
+    same mask for all elements in a batch, but a different mask for
+    the ~k~ different MC samples
+  - This results in the aforementioned ~logits_B_K_C~ form
+  - Use ~mutual_information(logits_B_K_C)~ to get the mutual
+    information for each of the elements of the batch (using the ~k~
+    MC samples). Results in ~scores_B~
+  - Send the ~n~ elements with the smallest mutual information to be
+    labeled
 * Classes
 ** BayesianModule
+*** ~forward~
 #+BEGIN_SRC python
   # Returns B x n x output
   def forward(self, input_B: torch.Tensor, k: int):
@@ -20,4 +33,50 @@
       # Bring tensor back to correct output
       mc_output_B_K = BayesianModule.unflatten_tensor(mc_output_BK, k)
       return mc_output_B_K
+#+END_SRC
+*** ~flatten_tensor(mc_input: torch.Tensor)~
+Takes a tensor and flattens the first two dimensions. e.g.
+~torch.Size([2, 3, 4, 5])~ becomes ~torch.Size([6, 4, 5])~
+*** ~unflatten_tensor(input: torch.Tensor, k: int)~
+Expands the first dimension of a tensor into two, with the size of the
+second dimension determined by ~k~
+*** ~mc_tensor(input: torch.tensor, k: int)~
+Takes a tensor and repeates all other dimensions along the first
+dimension k times. E.g ~t = torch.Size([2, 3, 4])~ becomes ~s =
+torch.Size([6, 3, 4])~ with ~k=3~ and ~s[0] == s[1] == s[2] == t[0]~
+** BayesianNet(BayesianModule)
+Normal CNN implementation using ~MCDroput2D~ instead of normal dropout
+and using ~mc_forward_impl~ to implement the forward pass. On
+~forward~ in ~BayesianModule~, the incoming tensor is blown up ~k~
+times and then sent through BayesianNet
+** __MCDropout(torch.Module)
+Dropout that keeps it's dropout mask unless it is specifically
+instructed to do so using ~reset_mask~. Generates a different mask for
+each ~k~ (MC sample) but repeates the same mask over all the elements
+in the batch. E.g. all elements from the batch are evaluated using the
+same k sampled models (via dropout)
+** Mutual Information
+#+BEGIN_SRC python
+  def logit_mean(logits, dim: int, keepdim: bool = False):
+      r"""Computes $\log \left ( \frac{1}{n} \sum_i p_i \right ) =
+      \log \left ( \frac{1}{n} \sum_i e^{\log p_i} \right )$.
+
+      We pass in logits.
+      """
+      return torch.logsumexp(logits, dim=dim, keepdim=keepdim) - math.log(logits.shape[dim])
+
+  def entropy(logits, dim: int, keepdim: bool = False):
+      return -torch.sum((torch.exp(logits) * logits).double(), dim=dim, keepdim=keepdim)
+
+  def mutual_information(logits_B_K_C):
+      """Returns the mutual information for each element of the batch,
+      determined by the K MC samples"""
+      sample_entropies_B_K = entropy(logits_B_K_C, dim=-1)
+      entropy_mean_B = torch.mean(sample_entropies_B_K, dim=1)
+
+      logits_mean_B_C = logit_mean(logits_B_K_C, dim=1)
+      mean_entropy_B = entropy(logits_mean_B_C, dim=-1)
+
+      mutual_info_B = mean_entropy_B - entropy_mean_B
+      return mutual_info_B
 #+END_SRC

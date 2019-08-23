@@ -98,6 +98,8 @@ def entropy(logits, dim: int, keepdim: bool = False):
 
 @jit.script
 def mutual_information(logits_B_K_C):
+    """Returns the mutual information for each element of the batch,
+determined by the K MC samples"""
     sample_entropies_B_K = entropy(logits_B_K_C, dim=-1)
     entropy_mean_B = torch.mean(sample_entropies_B_K, dim=1)
 
