@@ -198,10 +198,12 @@ def main():
         balanced_validation_set=balanced_validation_set,
     )
 
+    # Test dataset
     test_loader = torch.utils.data.DataLoader(
         experiment_data.test_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
     )
 
+    # Training datset
     train_loader = torch.utils.data.DataLoader(
         experiment_data.train_dataset,
         sampler=RandomFixedLengthSampler(experiment_data.train_dataset, args.epoch_samples),
@@ -209,10 +211,12 @@ def main():
         **kwargs,
     )
 
+    # Data available for active learning (D_pool)
     available_loader = torch.utils.data.DataLoader(
         experiment_data.available_dataset, batch_size=args.scoring_batch_size, shuffle=False, **kwargs
     )
 
+    # Validation dataset
     validation_loader = torch.utils.data.DataLoader(
         experiment_data.validation_dataset, batch_size=args.test_batch_size, shuffle=False, **kwargs
     )
@@ -223,7 +227,7 @@ def main():
 
     store["initial_samples"] = experiment_data.initial_samples
 
-    acquisition_function: AcquisitionFunction = args.type
+    acquisition_function: AcquisitionFunction = args.type  # default is AcquisitionFunction.bald
     max_epochs = args.epochs
 
     for iteration in itertools.count(1):
@@ -231,6 +235,7 @@ def main():
         def desc(name):
             return lambda engine: "%s: %s (%s samples)" % (name, iteration, len(experiment_data.train_dataset))
 
+        # Train the model with available data
         with ContextStopwatch() as train_model_stopwatch:
             early_stopping_patience = args.early_stopping_patience
             num_inference_samples = args.num_inference_samples
@@ -248,6 +253,7 @@ def main():
                 device,
             )
 
+        # Decide on new samples to be labeled, simulate labeling, etc.
         with ContextStopwatch() as batch_acquisition_stopwatch:
             batch = acquisition_method.acquire_batch(
                 bayesian_model=model,

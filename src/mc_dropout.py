@@ -31,9 +31,13 @@ class BayesianModule(Module):
     def forward(self, input_B: torch.Tensor, k: int):
         BayesianModule.k = k
 
+        # First do the deterministic part of the network that won't change for the k samples
         input_B = self.deterministic_forward_impl(input_B)
+        # Blow up output of deterministic forward part to be able to process k samples at the same time
         mc_input_BK = BayesianModule.mc_tensor(input_B, k)
+        # Send the k deterministic inputs through the non-deterministic part
         mc_output_BK = self.mc_forward_impl(mc_input_BK)
+        # Bring tensor back to correct output
         mc_output_B_K = BayesianModule.unflatten_tensor(mc_output_BK, k)
         return mc_output_B_K
 
@@ -86,8 +90,8 @@ class _MCDropout(Module):
         self.mask = None
 
     def train(self, mode=True):
-        super().train(mode)
-        if not mode:
+        super().train(mode)     # Train called with False sets to eval mode
+        if not mode:            # Reset mask every time when we are in train mode
             self.reset_mask()
 
     def _get_sample_mask_shape(self, sample_shape):

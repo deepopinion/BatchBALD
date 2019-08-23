@@ -42,7 +42,7 @@ class AcquisitionMethod(enum.Enum):
                 available_loader=available_loader,
                 device=device,
             )
-        elif self == self.multibald:
+        elif self == self.multibald:  # This seems to be the default used in experiment
             return multi_bald.compute_multi_bald_batch(
                 bayesian_model=bayesian_model,
                 available_loader=available_loader,
