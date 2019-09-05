@@ -25,7 +25,7 @@ reduced_eval_consistent_bayesian_model_cuda_chunk_size = 512
 
 def reduced_eval_consistent_bayesian_model(
     bayesian_model: mc_dropout.BayesianModule,
-    acquisition_function: AcquisitionFunction,
+    acquisition_function: AcquisitionFunction, 
     num_classes: int,
     k: int,
     initial_percentage: int,
@@ -120,16 +120,18 @@ def reduced_eval_consistent_bayesian_model(
 
                 # Compute the score if it's needed: we are going to reduce the dataset or we're in the last iteration.
                 if next_size < B or k_upper == k:
+                    # Calculate the scores (mutual information) of logits_B_K_C
                     scores_B = acquisition_function.compute_scores(
                         logits_B_K_C, available_loader=subset_dataloader, device=device
                     )
                 else:
                     scores_B = None
-
+                    
                 if next_size < B:
                     print("Reducing size", next_size)
+                    # Get indices of samples sorted by increasing mutual information
                     sorted_indices = torch.argsort(scores_B, descending=True)
-
+                    # Select next_size samples with smallest mutual information (ascending indices)
                     new_indices = torch.sort(sorted_indices[:next_size], descending=False)[0]
 
                     B = next_size

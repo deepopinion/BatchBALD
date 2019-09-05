@@ -1,7 +1,7 @@
 pytorch_ignite==0.1.1
 pytest==3.10.0
 torch~=1.1
-blackhc.laaos~=0.1
+blackhc.laaos
 blackhc.notebook
 blackhc.progress_bar
 numpy>=1.15.4

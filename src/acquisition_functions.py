@@ -54,6 +54,7 @@ class AcquisitionFunction(enum.Enum):
             return NotImplementedError(f"{self} not supported yet!")
 
     def compute_scores(self, logits_B_K_C, available_loader, device):
+        """"""
         scorer = self.scorer
 
         if self == AcquisitionFunction.random:

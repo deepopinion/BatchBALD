@@ -1,3 +1,6 @@
+* Warning
+I am currently in the process of trying to understand the paper and
+code. Quite a bit of the comments are currently probably wrong ...
 * Infos
 - ~logits_B_K_C~
   - B :: The batch put into the system
@@ -10,12 +13,30 @@
   - Calculate the logits using a version of dropout that keeps the
     same mask for all elements in a batch, but a different mask for
     the ~k~ different MC samples
+    - When using dropout during inference we can interpret the whole
+      model without dropout we have trained as a probability
+      distribution over models. We can sample from this distribution
+      by using dropout during inference with a specific mask. Randomly
+      sampling a mask and using the model with this mask amounts to
+      sampling a model.
   - This results in the aforementioned ~logits_B_K_C~ form
-  - Use ~mutual_information(logits_B_K_C)~ to get the mutual
-    information for each of the elements of the batch (using the ~k~
-    MC samples). Results in ~scores_B~
-  - Send the ~n~ elements with the smallest mutual information to be
-    labeled
+- Use ~mutual_information(logits_B_K_C)~ to get the mutual information
+  between each of the elements of the batch (using the ~k~ MC samples)
+  and the model parameters. Results in ~scores_B~.
+  - This score is also used to initialize a_BatchBALD for the first
+    sample to be selected into the aquisition bag.
+- Select ~n~ elements with the smallest mutual information (~scores_B~ and ~logits_B_K_C~). Continue with this subset
+  - Not sure why this is done ...
+  - Maybe to restrict the search for samples that are promising in the
+    first place?
+
+- The main algorithm seems to be in ~compute_multi_bald_batch~ in
+  ~multi_bald.py~
+- Calculate ~conditional_entropies_B~ which are the E_p(w)[H(y_i|w)]. After summing together we get E_p(w)[H(y_1, ..., y_n|w)] which is the right hand side of Equation 8 to calculate batchBALD
+- Calculate conditional entropy with ~conditional_entropy_from_logits_B_K_C~
+- Calculate probabilities from ~logits_B_K_C~ using ~.log_softmax(2).exp()_~
+
+
 * Classes
 ** BayesianModule
 *** ~forward~
@@ -51,10 +72,10 @@ and using ~mc_forward_impl~ to implement the forward pass. On
 times and then sent through BayesianNet
 ** __MCDropout(torch.Module)
 Dropout that keeps it's dropout mask unless it is specifically
-instructed to do so using ~reset_mask~. Generates a different mask for
-each ~k~ (MC sample) but repeates the same mask over all the elements
-in the batch. E.g. all elements from the batch are evaluated using the
-same k sampled models (via dropout)
+instructed to forget it using ~reset_mask~. Generates a different mask
+for each ~k~ (MC sample) but repeates the same mask over all the
+elements in the batch. E.g. all elements from the batch are evaluated
+using the same k sampled models (via dropout)
 ** Mutual Information
 #+BEGIN_SRC python
   def logit_mean(logits, dim: int, keepdim: bool = False):

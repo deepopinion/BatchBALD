@@ -30,12 +30,23 @@ def sample_M_K(probs_N_K_C, S=1000):
 
     K = probs_N_K_C.shape[1]
 
+    # Given the probabilities in probs_N_K_C, take S samples from
+    # class labels according to the given distributions. In essence,
+    # we are sampling a possible configuration of class labels y_1:n
+    # for all samples
     choices_N_K_S = batch_multi_choices(probs_N_K_C, S).long()
-
+    
+    # Insert an empty dimension
     expanded_choices_N_K_K_S = choices_N_K_S[:, None, :, :]
     expanded_probs_N_K_K_C = probs_N_K_C[:, :, None, :]
-
-    probs_N_K_K_S = gather_expand(expanded_probs_N_K_K_C, dim=-1, index=expanded_choices_N_K_K_S)
+    
+    # From the sampled class labels gather the probabilities of those classes
+    probs_N_K_K_S = gather_expand(
+        expanded_probs_N_K_K_C,
+        dim=-1,
+        index=expanded_choices_N_K_K_S,
+    )
+    # Calculate the probability of all observed class labels 
     # exp sum log seems necessary to avoid 0s?
     probs_K_K_S = torch.exp(torch.sum(torch.log(probs_N_K_K_S), dim=0, keepdim=False))
     samples_K_M = probs_K_K_S.reshape((K, -1))
@@ -56,6 +67,7 @@ def from_M_K(samples_M_K):
 # prev_ws_samples: #ws x samples
 # entropy: #batch
 def batch(probs_B_K_C, samples_M_K):
+    # Bring everything to the correct format and to the same device
     probs_B_K_C = probs_B_K_C.double()
     samples_M_K = samples_M_K.double()
 
@@ -63,7 +75,7 @@ def batch(probs_B_K_C, samples_M_K):
     M, K = samples_M_K.shape
     B, K_, C = probs_B_K_C.shape
     assert K == K_
-
+    
     p_B_M_C = torch.empty((B, M, C), dtype=torch.float64, device=device)
 
     for i in range(B):
